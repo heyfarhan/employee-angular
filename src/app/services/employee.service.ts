@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject, delay, Observable, of, tap } from 'rxjs';
+import { BehaviorSubject, delay, lastValueFrom, Observable, of, tap } from 'rxjs';
 import { Employee } from '../models/employee.model';
 import { JsonpInterceptor } from '@angular/common/http';
 
@@ -7,48 +7,56 @@ import { JsonpInterceptor } from '@angular/common/http';
   providedIn: 'root'
 })
 export class EmployeeService {
-  private employeesCache = new BehaviorSubject<Employee[] | null>(null);
 
-  employee = [
-    { "id": 1, "name": "John Doe", "dept": "HR", "salary": 55000, "age": 29 },
-    { "id": 2, "name": "Jane Smith", "dept": "IT", "salary": 72000, "age": 34 },
-    { "id": 3, "name": "Alice Brown", "dept": "Finance", "salary": 63000, "age": 40 },
-    { "id": 4, "name": "Bob White", "dept": "Marketing", "salary": 59000, "age": 27 },
-    { "id": 5, "name": "Charlie Lee", "dept": "IT", "salary": 80000, "age": 38 }]
+  private employeesCache$ = new BehaviorSubject<Employee[]>(this.getEmployeesFromLocalStorage());
+  private employees$: Observable<Employee[]> = this.employeesCache$.asObservable();
+
 
   constructor() {
   }
 
-  getEmployeesObservable(): Observable<Employee[] | null> {
-    if (!this.employeesCache.value) {
-      this.saveToLocalStorage()
-      return of(this.employee).pipe(
-        delay(1000), // Simulate network delay
-        tap((data) => this.employeesCache.next(data))
-      );
+  private getEmployeesFromLocalStorage(): Employee[] {
+    if (!localStorage.getItem('employees')) {
+      this.saveToLocalStorage([
+        { "id": 1, "name": "Alice", "position": "ceo", "dept": "it", "salary": 200000, "age": 55 },
+        { "id": 2, "name": "Bob", "position": "manager", "dept": "hr", "salary": 120000, "age": 42 },
+        { "id": 3, "name": "Charlie", "position": "employee", "dept": "sales", "salary": 60000, "age": 30 },
+        { "id": 4, "name": "David", "position": "manager", "dept": "it", "salary": 130000, "age": 48 },
+        { "id": 5, "name": "Williams", "position": "employee", "dept": "hr", "salary": 55000, "age": 28 },
+        { "id": 6, "name": "George", "position": "employee", "dept": "sales", "salary": 65000, "age": 35 }
+      ])
     }
-    return this.employeesCache.asObservable();
+    return JSON.parse(<string>localStorage.getItem('employees'));
+  }
+
+  getEmployeesObservable(): Observable<Employee[]> {
+    return (this.employees$).pipe(
+      delay(1000)
+    );
   }
 
   getEmployeesPromise(): Promise<Employee[]> {
     return new Promise((resolve) => {
-      setTimeout(() => resolve(this.employee), 1000);
+      setTimeout(() => resolve(lastValueFrom(this.employees$)), 1000);
     });
   }
 
-  addEmployee(employee: Employee): Observable<Employee> {
-    this.saveToLocalStorage()
-    return of(employee).pipe(
-      delay(500), // Simulate API response delay
-      tap(() => {
-        this.employee.push(employee);
-        this.employeesCache.next(null);
-      })
-    );
+  addEmployee(employee: Employee): Observable<Employee[]> {
+
+    this.employeesCache$.next(this.employeesCache$.value.concat(employee));
+    this.saveToLocalStorage(this.employeesCache$.value)
+    return (this.employees$).pipe(delay(1000))
   }
 
-  saveToLocalStorage() {
-    localStorage.setItem('employee', JSON.stringify(this.employee))
+  saveToLocalStorage(employees: Employee[]) {
+    localStorage.setItem('employees', JSON.stringify(employees))
+  }
+
+  generateId(): number {
+    if (this.employeesCache$.value.length === 0) return 1;
+    const maxId = Math.max(...this.employeesCache$.value.map((emp) => emp.id));
+    return maxId + 1;
   }
 
 }
+

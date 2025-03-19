@@ -6,7 +6,14 @@ import { HeaderComponent } from "./components/header/header.component";
   selector: 'app-root',
   imports: [RouterOutlet, HeaderComponent],
   templateUrl: './app.component.html',
-  styles: [],
+  styles: `.outlet{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:5vh 0;
+    width:100vw;
+    height:75vh;
+  }`,
 })
 export class AppComponent {
   title = 'project-emp';
